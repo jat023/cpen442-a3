@@ -9,17 +9,17 @@ from config import PRIME, GENERATOR
 class Session(object):
 
     def __gen_nonce(self):
-        self.my_nonce = random.getrandbits(5)
+        self.my_nonce = random.getrandbits(32)
         self.my_nonce = self.my_nonce.to_bytes(64, byteorder='little')
 
     def __init__(self, key):
         key = key.encode('utf-8')
-        #Min must be greater than 2048 bits at least
-        self.secret_exponent = random.randint(5000, 10000)
+        #Size of the secret exponent
+        self.secret_exponent = random.getrandbits(512)
         #Should be large enough, and remembered
         self.__gen_nonce()
         self.iv = Random.new().read(AES.block_size)
-        self.self_remainder = (GENERATOR**self.secret_exponent) % PRIME
+        self.self_remainder = pow(GENERATOR, self.secret_exponent, PRIME)
         self.self_remainder = self.self_remainder.to_bytes(256, byteorder='little')
         #Create 256 bit key from password
         hash = SHA256.new()
@@ -32,8 +32,13 @@ class Session(object):
     def extract_sender_remainder(cls, decrypted_nonce_message):
         return int.from_bytes(decrypted_nonce_message[len(decrypted_nonce_message) - 256:], byteorder='little')
 
+    @classmethod
+    def extract_nonce_from_message(cls, decrypted_nonce_message):
+        return decrypted_nonce_message[:len(decrypted_nonce_message) - 256]
+
+
     def calculate_session_key(self, decrypted_nonce_message):
-        return (Session.extract_sender_remainder(decrypted_nonce_message)**self.secret_exponent) % PRIME
+        return pow(Session.extract_sender_remainder(decrypted_nonce_message), self.secret_exponent, PRIME)
 
     def set_session_key(self, decrypted_nonce_message):
         hash = SHA256.new()
@@ -49,10 +54,10 @@ class Session(object):
     def encrypt_nonce(self, nonce):
         cipher = AES.new(self.shared_key, AES.MODE_CFB, self.iv)
         while self.my_nonce == nonce:
-            __gen_nonce()
+            self.__gen_nonce()
         return base64.b64encode(self.iv + self.my_nonce + cipher.encrypt(bytes(nonce) + bytes(self.self_remainder)))
 
-    #Should decrypt second message in key exchange
+    #Should decrypt nonce messages
     def decrypt_nonce(self, message):
         enc = base64.b64decode(message)
         iv = enc[:16]
@@ -60,13 +65,6 @@ class Session(object):
         sender_nonce = enc[16:16+64]
         cipher = AES.new(self.shared_key, AES.MODE_CFB, iv)
         return cipher.decrypt(enc[16+64:]), sender_nonce
-
-    #Should decrypt third message in key exchange
-    def decrypt_nonceless_auth_message(self, message):
-        enc = base64.b64decode(message)
-        iv = enc[:16]
-        cipher = AES.new(self.shared_key, AES.MODE_CFB, iv)
-        return cipher.decrypt(enc[16:])
 
     def encrypt(self, message):
         message = message
@@ -90,9 +88,16 @@ def test_shit():
 
     alices_nonce_and_bobs_remainder_decrypted_by_alice, bobs_nonce = alice.decrypt_nonce(alices_nonce_encrypted_by_bob)
 
+    #Make sure to implement this check in the actual key exchange
+    assert(alice_nonce == Session.extract_nonce_from_message(alices_nonce_and_bobs_remainder_decrypted_by_alice))
+
     bobs_nonce_encrypted_by_alice = alice.encrypt_nonce(bobs_nonce)
 
-    bobs_nonce_and_alices_remainder_decrypted_by_bob = bob.decrypt_nonceless_auth_message(bobs_nonce_encrypted_by_alice)
+    #Grabbing only first element of tuple output by decrypt_nonce, as that nonce has been sent already.
+    bobs_nonce_and_alices_remainder_decrypted_by_bob = bob.decrypt_nonce(bobs_nonce_encrypted_by_alice)[0]
+
+    #Make sure to implement this check in the actual key exchange
+    assert(bobs_nonce == Session.extract_nonce_from_message(bobs_nonce_and_alices_remainder_decrypted_by_bob))
 
     alice.set_session_key(alices_nonce_and_bobs_remainder_decrypted_by_alice)
 
