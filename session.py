@@ -6,7 +6,6 @@ from Crypto.Random import random
 
 from config import PRIME, GENERATOR
 
-
 class Session(object):
 
     def __gen_nonce(self):
@@ -16,7 +15,7 @@ class Session(object):
     def __init__(self, key):
         key = key.encode('utf-8')
         #Min must be greater than 2048 bits at least
-        self.secret_exponent = random.randint(3000, 900000)
+        self.secret_exponent = random.randint(5000, 10000)
         #Should be large enough, and remembered
         self.__gen_nonce()
         self.iv = Random.new().read(AES.block_size)
@@ -28,55 +27,79 @@ class Session(object):
         self.shared_key = hash.hexdigest()
         self.shared_key = self.shared_key[:32:]
 
+    #Given a decrypted nonce message, you can extract the generator^b mod Prime with this method
+    @classmethod
+    def extract_sender_remainder(cls, decrypted_nonce_message):
+        return int.from_bytes(decrypted_nonce_message[len(decrypted_nonce_message) - 256:], byteorder='little')
+
+    def calculate_session_key(self, decrypted_nonce_message):
+        return (Session.extract_sender_remainder(decrypted_nonce_message)**self.secret_exponent) % PRIME
+
+    def set_session_key(self, decrypted_nonce_message):
+        hash = SHA256.new()
+        hash.update(str(self.calculate_session_key(decrypted_nonce_message)).encode('utf-8'))
+        self.session_key = hash.hexdigest()
+        self.session_key = self.session_key[:32:]
+
+    #Should be first message to send in key exchange
     def send_plaintext_nonce(self):
         return self.my_nonce
 
+    #Should be second message sent in key exchange
     def encrypt_nonce(self, nonce):
         cipher = AES.new(self.shared_key, AES.MODE_CFB, self.iv)
-        # return base64.b64encode(self.iv + cipher.encrypt(nonce))
         while self.my_nonce == nonce:
             __gen_nonce()
         return base64.b64encode(self.iv + self.my_nonce + cipher.encrypt(bytes(nonce) + bytes(self.self_remainder)))
 
+    #Should decrypt second message in key exchange
     def decrypt_nonce(self, message):
         enc = base64.b64decode(message)
         iv = enc[:16]
+        self.iv = iv
         sender_nonce = enc[16:16+64]
         cipher = AES.new(self.shared_key, AES.MODE_CFB, iv)
         return cipher.decrypt(enc[16+64:]), sender_nonce
 
-    def decrypt(self, ciphertext):
-        pass
+    #Should decrypt third message in key exchange
+    def decrypt_nonceless_auth_message(self, message):
+        enc = base64.b64decode(message)
+        iv = enc[:16]
+        cipher = AES.new(self.shared_key, AES.MODE_CFB, iv)
+        return cipher.decrypt(enc[16:])
 
-# class Message(Object):
-#
-#     def __init__(self, iv, message):
-#         self.iv = iv
-#         self.message = message
-#
-# class SessionMessage(Object):
-#
-#     def __init__(self, message, key, iv):
-#         cipher = AES.new(key, AES.MODE_CFB, iv)
-#         self.message = iv + cipher.encrypt()
-#
+    def encrypt(self, message):
+        message = message
+        cipher = AES.new(self.session_key, AES.MODE_CFB, self.iv)
+        return base64.b64encode(cipher.encrypt(message))
 
-x = Session("test")
-y = Session("test")
+    def decrypt(self, message):
+        enc = base64.b64decode(message)
+        cipher = AES.new(self.session_key, AES.MODE_CFB, self.iv)
+        return cipher.decrypt(enc).decode('UTF-8')
 
-xnonce = x.send_plaintext_nonce()
-print(int.from_bytes(xnonce, byteorder='little'))
 
-xnonce_encrypted_by_y = y.encrypt_nonce(xnonce)
-print(xnonce)
-# print(xnonce_encrypted_by_y)
-print("SPACING")
-xnonce_decrypted_by_x, ynonce = x.decrypt_nonce(xnonce_encrypted_by_y)
-# xy = xnonce_decrypted_by_x.decode(encoding='UTF-8')
-# print((xy[:64]))
-print("SPACING 2")
-print(ynonce)
-print(int.from_bytes(ynonce, byteorder='little'))
-print(int.from_bytes(y.send_plaintext_nonce(), byteorder='little'))
-print("SPACING 3")
-print(int.from_bytes(xnonce_decrypted_by_x[:64], byteorder='little'))
+
+def test_shit():
+    alice = Session("testsharedkey")
+    bob = Session("testsharedkey")
+
+    alice_nonce = alice.send_plaintext_nonce()
+
+    alices_nonce_encrypted_by_bob = bob.encrypt_nonce(alice_nonce)
+
+    alices_nonce_and_bobs_remainder_decrypted_by_alice, bobs_nonce = alice.decrypt_nonce(alices_nonce_encrypted_by_bob)
+
+    bobs_nonce_encrypted_by_alice = alice.encrypt_nonce(bobs_nonce)
+
+    bobs_nonce_and_alices_remainder_decrypted_by_bob = bob.decrypt_nonceless_auth_message(bobs_nonce_encrypted_by_alice)
+
+    alice.set_session_key(alices_nonce_and_bobs_remainder_decrypted_by_alice)
+
+    bob.set_session_key(bobs_nonce_and_alices_remainder_decrypted_by_bob)
+
+    assert(bob.session_key == alice.session_key)
+    assert(bob.iv == alice.iv)
+    assert("test" == bob.decrypt(alice.encrypt("test")))
+
+test_shit()
