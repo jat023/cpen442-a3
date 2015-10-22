@@ -16,12 +16,12 @@
 % use a multiple column layout for up to three different
 % affiliations
 % % % % CHANGE: Add your aliases here
-\author{\IEEEauthorblockN{Matthew Kuo, Anson Wong}
+\author{\IEEEauthorblockN{blue, v6q8}
 \IEEEauthorblockA{Department of Computer Science\\
 University of British Columbia\\
 }
 \and
-\IEEEauthorblockN{Matt Labbe, Kevin Lim}
+\IEEEauthorblockN{Matt Labbe, hydro}
 \IEEEauthorblockA{Electrical and\\Computer Engineering\\
 University of British Columbia\\
 }
@@ -41,7 +41,7 @@ Four CPEN442 students test their knowledge of network programming and exercise u
 
 \section{Introduction}
 % no \IEEEPARstart
-% We built the program with simplicity in mind. Thus, we chose to do the assignment in Python using a command line interface for the server and client. The 
+We built the program in Python with simplicity in mind. Thus, we chose to do the assignment in Python using a command line interface for the server and client. Use Python3 and run {\tt pip install -r requirements.txt}.
 % We built the program in Python using tkinter for the GUI with the expectation that it look similar to MSN instant messenger. 
 
 \section{Data Transmission}
@@ -51,24 +51,24 @@ We implement mutual authentication using challenge-response. Prior to the authen
 \begin{itemize}
 	\item The server generates a session token (some randomly generated string) which is then encrypted. 
 	\item This encrypted token is sent to the client
-	\item The client decrypts the token and sends it back to the server (using its own encryption?)
+	\item The client decrypts the token and sends it back to the server using its own means of encryption
 	\item The server verifies the response using the original token.
 	\item We repeat the above steps from the client's point of view. If either challenge fails, then the authentication fails and the connection is terminated. 
 \end{itemize}
 Given two successful challenges, the authentication is successful and the entities are assured mutual verification. 
 \section{Key Derivation from Shared Secret}
-We use the Diffie-Hellman key exchange protocol as was presented in class. We generate random nonces to use as secret exponent values $c$ and $s$ for both client and server respectively. Then we use $g^c\mod p$ as the client's public key and $g^s\mod p$ as the server's public key. Where, in both cases, $p$ is some randomly generated prime number (this is found in {\tt config.py}). 
+We use the Diffie-Hellman key exchange protocol as was presented in class. We generate random nonces to use as secret exponent values $c$ and $s$ for both client and server respectively. Then we use $g^c\mod p$ as the client's public key and $g^s\mod p$ as the server's public key. Where, in both cases, $p$ is a peer-reviewed prime number known to be secure (this is found in {\tt config.py}). 
 % Note that the exponent for both client and server is a nonce. 
 Thus, our symmetric key is given by $g^{cs}\mod p$ which is easily mutually computed using the fact that $(g^c)^s = g^{cs} = g^{cs}\mod p$ and conversely, $(g^s)^c = g^{sc} = g^{cs}\mod p$. Encryption of messages using this key is using AES256, which requires keys of 32 bytes so we use SHA256 to hash the secret key we compute to obtain a key of the proper length.
 \section{Production Parameters}
-
+We feel our parameters are reasonably secure, however if we were to build a production quality project, we would employ elliptical curve cryptography. 
 \section{Code Particulars}
-
+The code is written in Python and is around 200 lines long.
 
 
 
 \section{Conclusion}
-
+We hope this demonstrates secure practices in a software project. 
 
 
 % that's all folks
