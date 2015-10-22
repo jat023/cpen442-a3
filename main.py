@@ -11,7 +11,7 @@ from config import PRIME, GENERATOR
 
 
 BUFFER_SIZE = 1024  
-AUTH_FLAG = True
+AUTHENTICATED = False
 
 while True:
     mode = input('Open in (C)lient or (S)erver mode?: ').strip().upper()
@@ -77,18 +77,21 @@ if mode == 'C':
     print("-------------------------------")
     if server_challenge_response == client_cryptotext:
         print("-----Client Challenge Server Successfull-----")
+        AUTHENTICATED = True
     else:
         print("-----Client Challenge Server Failed-----")
-        AUTH_FLAG = False
+        AUTHENTICATED = False
     print("==============END==============")
     print("*******************************")
     print(auth_response)
 
-    while AUTH_FLAG:
-        message = input('Data to be sent: ').strip()
+    while AUTHENTICATED:
+        message = input('Data to be sent (Plaintext): ').strip()
         encryptedMessage = client.encrypt(message)
         s.send(encryptedMessage)
-    
+        print('Data Sent (Ciphertext): ' + str(encryptedMessage))
+        print("-------------------------------")
+
 if mode == 'S':
     port = server.get_connect_info_from_user()
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -157,18 +160,21 @@ if mode == 'S':
     print("-------------------------------")
     if client_challenge_response == server_cryptotext:
         print("-----Server Challenge Client Successfull-----")
+        AUTHENTICATED = True
     else:
         print("-----Server Challenge Client Failed-----")
-        AUTH_FLAG = False
+        AUTHENTICATED = False
     print("==============END==============")
     print("*******************************")
     print(auth_response)
 
 
-    while AUTH_FLAG:
+    while AUTHENTICATED:
         data = connection.recv(BUFFER_SIZE)
         if not data: break
+        print('Data as Recieved (Ciphertext): ', data)
         message = server.decrypt(data)
-        print('Data as Recieved: ', message)
+        print('Data decrypted (Plaintext): ', message)
+        print("-------------------------------")
 
     connection.close()
