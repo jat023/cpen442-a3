@@ -42,14 +42,26 @@ Four CPEN442 students test their knowledge of network programming and exercise u
 \section{Introduction}
 % no \IEEEPARstart
 % We built the program with simplicity in mind. Thus, we chose to do the assignment in Python using a command line interface for the server and client. The 
+% We built the program in Python using tkinter for the GUI with the expectation that it look similar to MSN instant messenger. 
 
 \section{Data Transmission}
 We use a TCP/IP connection both to send and receive data. The protocol requires that there exists a server operating before a client can connect. The connection will only be established given the correct port number and IP address are supplied. We transmit data in bytes. 
 \section{Mutual Authentication Protocol}
-
+We implement mutual authentication using challenge-response. Prior to the authentication, both client and server need to have established a shared private key. This secret key is used to encrypt and decrypt all data sent between the entities. Then the challenge-response begins as follows
+\begin{itemize}
+	\item The server generates a session token (some randomly generated string) which is then encrypted. 
+	\item This encrypted token is sent to the client
+	\item The client decrypts the token and sends it back to the server (using its own encryption?)
+	\item The server verifies the response using the original token.
+	\item We repeat the above steps from the client's point of view. If either challenge fails, then the authentication fails and the connection is terminated. 
+\end{itemize}
+Given two successful challenges, the authentication is successful and the entities are assured mutual verification. 
 \section{Key Derivation from Shared Secret}
-We use the Diffie-Hellman key exchange protocol as was presented in class. We have coded in a `choice' of secret exponent values $c$ and $s$ for both client and server respectively. Then we use $g^c\mod p$ as the client's public key and $g^s\mod p$ as the server's public key. Where, in both cases, $p$ is some randomly generated prime number (this is found in {\tt config.py}). Note that the exponent for both client and server is a nonce. Thus, our symmetric key is given by $g^{cs}\mod p$ which is easily mutually computed using the fact that $(g^c)^s = g^{cs} = g^{cs}\mod p$ and conversely, $(g^s)^c = g^{sc} = g^{cs}\mod p$.
+We use the Diffie-Hellman key exchange protocol as was presented in class. We generate random nonces to use as secret exponent values $c$ and $s$ for both client and server respectively. Then we use $g^c\mod p$ as the client's public key and $g^s\mod p$ as the server's public key. Where, in both cases, $p$ is some randomly generated prime number (this is found in {\tt config.py}). 
+% Note that the exponent for both client and server is a nonce. 
+Thus, our symmetric key is given by $g^{cs}\mod p$ which is easily mutually computed using the fact that $(g^c)^s = g^{cs} = g^{cs}\mod p$ and conversely, $(g^s)^c = g^{sc} = g^{cs}\mod p$. Encryption of messages using this key is using AES256, which requires keys of 32 bytes so we use SHA256 to hash the secret key we compute to obtain a key of the proper length.
 \section{Production Parameters}
+
 \section{Code Particulars}
 
 
