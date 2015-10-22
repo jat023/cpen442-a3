@@ -1,5 +1,6 @@
 \documentclass[conference]{IEEEtran}
 
+\usepackage{amsmath}
 
 
 % correct bad hyphenation here
@@ -45,7 +46,9 @@ Four CPEN442 students test their knowledge of network programming and exercise u
 \section{Data Transmission}
 We use a TCP/IP connection both to send and receive data. The protocol requires that there exists a server operating before a client can connect. The connection will only be established given the correct port number and IP address are supplied. We transmit data in bytes. 
 \section{Mutual Authentication Protocol}
+
 \section{Key Derivation from Shared Secret}
+We use the Diffie-Hellman key exchange protocol as was presented in class. We have coded in a `choice' of secret exponent values $c$ and $s$ for both client and server respectively. Then we use $g^c\mod p$ as the client's public key and $g^s\mod p$ as the server's public key. Where, in both cases, $p$ is some randomly generated prime number (this is found in {\tt config.py}). Note that the exponent for both client and server is a nonce. Thus, our symmetric key is given by $g^{cs}\mod p$ which is easily mutually computed using the fact that $(g^c)^s = g^{cs} = g^{cs}\mod p$ and conversely, $(g^s)^c = g^{sc} = g^{cs}\mod p$.
 \section{Production Parameters}
 \section{Code Particulars}
 
